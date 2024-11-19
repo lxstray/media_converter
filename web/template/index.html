@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <title>^_^</title>
+</head>
+<body>
+    <h1>go+htmx</h1>
+    <h2>{{.Message}}</h2>
+    <form hx-post="/convertYoutube2audio" hx-swap="none">
+        <input type="text" name="url" id="url">
+        <button type="submit">boom</button>
+    </form>
+</body>
+</html>
