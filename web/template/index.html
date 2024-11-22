@@ -9,7 +9,7 @@
 <body>
     <h1>go+htmx</h1>
     <h2>{{.Message}}</h2>
-    <form hx-post="/convertYoutube2audio" hx-swap="none">
+    <form action="/convertYoutube2audio" method="post">
         <input type="text" name="url" id="url">
         <button type="submit">boom</button>
     </form>

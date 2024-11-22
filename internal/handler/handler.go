@@ -29,5 +29,5 @@ func ConvertYoutube2audio(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "missing url", http.StatusBadRequest)
 		return
 	}
-	converter.Yt2m4a(url)
+	converter.Yt2m4a(&w, r, url)
 }

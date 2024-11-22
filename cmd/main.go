@@ -11,7 +11,7 @@ import (
 
 func main() {
 	http.HandleFunc("/", handler.Home)
-	http.HandleFunc("/convertYoutube2audio", handler.ConvertYoutube2audio)
+	http.HandleFunc("POST /convertYoutube2audio", handler.ConvertYoutube2audio)
 	fmt.Println("server starting on port: 8080")
 	http.ListenAndServe(":8080", nil)
 }

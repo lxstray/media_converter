@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
 	"sync"
 
@@ -17,12 +18,10 @@ import (
 //TODO: попробовать прочитать результат ffmpeg в слайс []byte
 //TODO: подумать насчет log и fmt
 
-func Yt2m4a(url string) {
+func Yt2m4a(w *http.ResponseWriter, r *http.Request, url string) {
 	info := getInfo(url) //TODO: запустить в горутину если получиться получить video id другим способом
-	fmt.Println("title: ", info.Title, ", author: ", info.Uploader, ", id", info.VideoID)
 
 	tempAudioPath, tempCoverPath := generateTempFilesNames()
-	fmt.Println(tempAudioPath, ", ", tempCoverPath)
 
 	getCover(info.VideoID, tempCoverPath) //TODO: go и waitgroup
 
@@ -54,7 +53,24 @@ func Yt2m4a(url string) {
 	}()
 
 	wg.Wait()
-	fmt.Println("done -_-")
+
+	file, err := os.Open(tempAudioPath)
+	if err != nil {
+		http.Error(*w, "File not found.", http.StatusNotFound)
+		return
+	}
+	defer file.Close()
+	fileName := info.Uploader + "_-_" + info.Title + ".m4a"
+
+	//TODO: привести в человеческий вид
+	resp := *w
+
+	resp.Header().Set("Content-Type", "audio/m4a")
+	resp.Header().Set("Content-Disposition", `attachment; filename="`+fileName+`"`)
+	http.ServeFile(resp, r, tempAudioPath)
+
+	defer os.Remove(tempAudioPath)
+	defer os.Remove(tempCoverPath)
 }
 
 type VideoInfo struct {
