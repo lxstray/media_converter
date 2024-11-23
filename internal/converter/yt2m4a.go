@@ -54,12 +54,6 @@ func Yt2m4a(w *http.ResponseWriter, r *http.Request, url string) {
 
 	wg.Wait()
 
-	file, err := os.Open(tempAudioPath)
-	if err != nil {
-		http.Error(*w, "File not found.", http.StatusNotFound)
-		return
-	}
-	defer file.Close()
 	fileName := info.Uploader + "_-_" + info.Title + ".m4a"
 
 	//TODO: привести в человеческий вид

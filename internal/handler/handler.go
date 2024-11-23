@@ -17,7 +17,7 @@ func Home(w http.ResponseWriter, r *http.Request) {
 	data := struct {
 		Message string
 	}{
-		Message: "goodbye world",
+		Message: "media converter",
 	}
 
 	tmpl.Execute(w, data)

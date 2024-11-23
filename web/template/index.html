@@ -5,13 +5,110 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <title>^_^</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #1e2030;
+            --text-color: #cad3f5;
+            --subtext1-color: #a5adcb;
+            --input-color: #181926;
+            --btn-color: #ed8796;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg-color);
+            color: var(--text-color);
+            display: grid;
+            justify-content: center;
+            align-items: center;
+            height: 70vh;
+        }
+
+        .kawaii {
+            font-size: 10px;
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .url {
+            border: none;
+            border-radius: 10px;
+            background-color: var(--input-color);
+            color: var(--text-color);
+            width: 100%;
+            height: 70px;
+            font-size: 2rem;
+            padding: 25px;
+            padding-right: 120px;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        .url::placeholder{
+            color: var(--subtext1-color);
+        }
+
+        .url:focus {
+            outline: none;
+        }
+
+        h2 {
+            text-align: center;
+            font-size: 3rem;
+        }
+
+        .url-input {
+            position: relative;
+            align-items: center;
+            height: 70px;
+            width: 600px;
+        }
+
+        .submit {
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%) translateX(-10px);
+            width: 100px;
+            height: 50px;
+            font-family: 'JetBrains Mono', monospace;
+            border: none;
+            border-radius: 10px;
+            background-color: var(--btn-color);
+            font-size: 1.5rem;
+            margin: 0;
+        }
+
+
+    </style><div class="container"></div>
 </head>
 <body>
-    <h1>go+htmx</h1>
-    <h2>{{.Message}}</h2>
-    <form action="/convertYoutube2audio" method="post">
-        <input type="text" name="url" id="url">
-        <button type="submit">boom</button>
-    </form>
+    <div class="container">
+        <h2>{{.Message}}</h2>
+        <div class="kawaii">
+            <div>⣇⣿⠘⣿⣿⣿⡿⡿⣟⣟⢟⢟⢝⠵⡝⣿⡿⢂⣼⣿⣷⣌⠩⡫⡻⣝⠹⢿⣿⣷</div>
+            <div>⡆⣿⣆⠱⣝⡵⣝⢅⠙⣿⢕⢕⢕⢕⢝⣥⢒⠅⣿⣿⣿⡿⣳⣌⠪⡪⣡⢑⢝⣇</div>
+            <div>⡆⣿⣿⣦⠹⣳⣳⣕⢅⠈⢗⢕⢕⢕⢕⢕⢈⢆⠟⠋⠉⠁⠉⠉⠁⠈⠼⢐⢕⢽</div>
+            <div>⡗⢰⣶⣶⣦⣝⢝⢕⢕⠅⡆⢕⢕⢕⢕⢕⣴⠏⣠⡶⠛⡉⡉⡛⢶⣦⡀⠐⣕⢕</div>
+            <div>⡝⡄⢻⢟⣿⣿⣷⣕⣕⣅⣿⣔⣕⣵⣵⣿⣿⢠⣿⢠⣮⡈⣌⠨⠅⠹⣷⡀⢱⢕</div>
+            <div>⡝⡵⠟⠈⢀⣀⣀⡀⠉⢿⣿⣿⣿⣿⣿⣿⣿⣼⣿⢈⡋⠴⢿⡟⣡⡇⣿⡇⡀⢕</div>
+            <div>⡝⠁⣠⣾⠟⡉⡉⡉⠻⣦⣻⣿⣿⣿⣿⣿⣿⣿⣿⣧⠸⣿⣦⣥⣿⡇⡿⣰⢗⢄</div>
+            <div>⠁⢰⣿⡏⣴⣌⠈⣌⠡⠈⢻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣬⣉⣉⣁⣄⢖⢕⢕⢕</div>
+            <div>⡀⢻⣿⡇⢙⠁⠴⢿⡟⣡⡆⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣵⣵⣿</div>
+            <div>⡻⣄⣻⣿⣌⠘⢿⣷⣥⣿⠇⣿⣿⣿⣿⣿⣿⠛⠻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿</div>
+            <div>⣷⢄⠻⣿⣟⠿⠦⠍⠉⣡⣾⣿⣿⣿⣿⣿⣿⢸⣿⣦⠙⣿⣿⣿⣿⣿⣿⣿⣿⠟</div>
+            <div>⡕⡑⣑⣈⣻⢗⢟⢞⢝⣻⣿⣿⣿⣿⣿⣿⣿⠸⣿⠿⠃⣿⣿⣿⣿⣿⣿⡿⠁⣠</div>
+            <div>⡝⡵⡈⢟⢕⢕⢕⢕⣵⣿⣿⣿⣿⣿⣿⣿⣿⣿⣶⣶⣿⣿⣿⣿⣿⠿⠋⣀⣈⠙</div>
+            <div>⡝⡵⡕⡀⠑⠳⠿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠿⠛⢉⡠⡲⡫⡪⡪⡣</div>
+        </div>
+
+        <form action="/convertYoutube2audio" method="post">
+            <div class="url-input">
+                <input type="text" name="url" id="url" class="url" placeholder="input url">
+                <button type="submit" class="submit">BOOM</button>
+            </div>
+        </form>
+    </div>
 </body>
 </html>
