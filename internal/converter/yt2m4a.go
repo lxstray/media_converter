@@ -19,11 +19,10 @@ import (
 //TODO: подумать насчет log и fmt
 
 func Yt2m4a(w *http.ResponseWriter, r *http.Request, url string) {
-	info := getInfo(url) //TODO: запустить в горутину если получиться получить video id другим способом
+	info := GetYoutubeInfo(url) //TODO: запустить в горутину если получиться получить video id другим способом
+	tempAudioPath, tempCoverPath := GenerateTempFilesNames()
 
-	tempAudioPath, tempCoverPath := generateTempFilesNames()
-
-	getCover(info.VideoID, tempCoverPath) //TODO: go и waitgroup
+	getCover(info.VideoID, tempCoverPath)
 
 	audioChan := make(chan io.ReadCloser)
 	wg := &sync.WaitGroup{}
@@ -31,7 +30,7 @@ func Yt2m4a(w *http.ResponseWriter, r *http.Request, url string) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		audioCmd := exec.Command("yt-dlp", "-x", "-f", "m4a", "--no-playlist", url, "-o", "-")
+		audioCmd := exec.Command("yt-dlp", "-x", "--audio-quality", "0", "-f", "m4a", "--no-playlist", url, "-o", "-")
 		audioPipe, err := audioCmd.StdoutPipe()
 		if err != nil {
 			log.Fatal(err)
@@ -73,7 +72,7 @@ type VideoInfo struct {
 	VideoID  string `json:"id"`
 }
 
-func getInfo(url string) VideoInfo {
+func GetYoutubeInfo(url string) VideoInfo {
 	infoJSONCmd := exec.Command("yt-dlp", "--no-playlist", "-j", url)
 
 	infoJSON, err := infoJSONCmd.Output()
@@ -128,7 +127,7 @@ func getCover(videoId string, tempCoverPath string) {
 	}
 }
 
-func generateTempFilesNames() (string, string) {
+func GenerateTempFilesNames() (string, string) {
 	tempAudio := "tmp/audio/" + uuid.New().String() + ".m4a"
 	tempCover := "tmp/cover/" + uuid.New().String() + ".png"
 

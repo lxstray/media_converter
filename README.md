@@ -7,3 +7,4 @@ a simple pet project that allows you to extract audio from youtube videos
 
 **TODO:**
 - [ ] добавить redis для кеша
+- [ ] мобильная версия
