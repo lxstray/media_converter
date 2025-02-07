@@ -1,6 +1,7 @@
 package converter
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"image"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 
 	"github.com/disintegration/imaging"
@@ -18,8 +20,7 @@ import (
 //TODO: попробовать прочитать результат ffmpeg в слайс []byte
 //TODO: подумать насчет log и fmt
 
-func Yt2m4a(w *http.ResponseWriter, r *http.Request, url string) {
-	info := GetYoutubeInfo(url) //TODO: запустить в горутину если получиться получить video id другим способом
+func Yt2m4a(w http.ResponseWriter, r *http.Request, info VideoInfo) {
 	tempAudioPath, tempCoverPath := GenerateTempFilesNames()
 
 	getCover(info.VideoID, tempCoverPath)
@@ -30,7 +31,7 @@ func Yt2m4a(w *http.ResponseWriter, r *http.Request, url string) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		audioCmd := exec.Command("yt-dlp", "-x", "--audio-quality", "0", "-f", "m4a", "--no-playlist", url, "-o", "-")
+		audioCmd := exec.Command("yt-dlp", "-x", "--audio-quality", "0", "-f", "m4a", "--no-playlist", info.URL, "-o", "-")
 		audioPipe, err := audioCmd.StdoutPipe()
 		if err != nil {
 			log.Fatal(err)
@@ -55,12 +56,9 @@ func Yt2m4a(w *http.ResponseWriter, r *http.Request, url string) {
 
 	fileName := info.Uploader + "_-_" + info.Title + ".m4a"
 
-	//TODO: привести в человеческий вид
-	resp := *w
-
-	resp.Header().Set("Content-Type", "audio/m4a")
-	resp.Header().Set("Content-Disposition", `attachment; filename="`+fileName+`"`)
-	http.ServeFile(resp, r, tempAudioPath)
+	w.Header().Set("Content-Type", "audio/m4a")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+fileName+`"`)
+	http.ServeFile(w, r, tempAudioPath)
 
 	defer os.Remove(tempAudioPath)
 	defer os.Remove(tempCoverPath)
@@ -70,6 +68,7 @@ type VideoInfo struct {
 	Title    string `json:"title"`
 	Uploader string `json:"uploader"`
 	VideoID  string `json:"id"`
+	URL      string `json:"url"`
 }
 
 func GetYoutubeInfo(url string) VideoInfo {
@@ -132,4 +131,47 @@ func GenerateTempFilesNames() (string, string) {
 	tempCover := "tmp/cover/" + uuid.New().String() + ".png"
 
 	return tempAudio, tempCover
+}
+
+type PlaylistInfo struct {
+	URL      string `json:"url"`
+	Title    string `json:"title"`
+	Uploader string `json:"uploader"`
+	VideoID  string `json:"id"`
+}
+
+func GetPlaylistInfo(w http.ResponseWriter, r *http.Request, url string) {
+	playlistCmd := exec.Command("yt-dlp", "--dump-json", "--flat-playlist", url)
+	output, err := playlistCmd.Output()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error in playlistCmd: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(string(output)))
+	var infos []PlaylistInfo
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		var info PlaylistInfo
+		if err := json.Unmarshal([]byte(line), &info); err != nil {
+			log.Printf("Pasing error JSON: %v", err)
+			continue
+		}
+		infos = append(infos, info)
+	}
+
+	if err := scanner.Err(); err != nil {
+		http.Error(w, fmt.Sprintf("Scanner error: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(infos); err != nil {
+		http.Error(w, fmt.Sprintf("Encoder error: %v", err), http.StatusInternalServerError)
+		return
+	}
 }

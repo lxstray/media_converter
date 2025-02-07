@@ -1,4 +1,5 @@
-a simple pet project that allows you to extract audio from youtube videos
+A simple pet project that allows you to download audio from soundcloud or youtube. 
+In the new version added work with playlists (for youtube only).
 
 
 **Preview:**
