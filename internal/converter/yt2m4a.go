@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
@@ -18,14 +19,16 @@ import (
 )
 
 //TODO: попробовать прочитать результат ffmpeg в слайс []byte
-//TODO: подумать насчет log и fmt
 
 func Yt2m4a(w http.ResponseWriter, r *http.Request, info VideoInfo) {
 	tempAudioPath, tempCoverPath := GenerateTempFilesNames()
+	defer os.Remove(tempAudioPath)
+	defer os.Remove(tempCoverPath)
 
 	getCover(info.VideoID, tempCoverPath)
 
 	audioChan := make(chan io.ReadCloser)
+	errChan := make(chan error, 2)
 	wg := &sync.WaitGroup{}
 
 	wg.Add(1)
@@ -34,11 +37,13 @@ func Yt2m4a(w http.ResponseWriter, r *http.Request, info VideoInfo) {
 		audioCmd := exec.Command("yt-dlp", "-x", "--audio-quality", "0", "-f", "m4a", "--no-playlist", info.URL, "-o", "-")
 		audioPipe, err := audioCmd.StdoutPipe()
 		if err != nil {
-			log.Fatal(err)
+			log.Println("yt-dlp pipe:", err)
+			errChan <- err
 		}
 		audioChan <- audioPipe
 		if err := audioCmd.Run(); err != nil {
-			log.Fatal(err)
+			log.Println("yt-dlp cmd:", err)
+			errChan <- err
 		}
 	}()
 
@@ -48,20 +53,27 @@ func Yt2m4a(w http.ResponseWriter, r *http.Request, info VideoInfo) {
 		ffmpegCmd := exec.Command("ffmpeg", "-i", "pipe:0", "-i", tempCoverPath, "-map", "0", "-map", "1", "-c", "copy", "-metadata", "artist="+info.Uploader, "-metadata", "title="+info.Title, "-disposition:v:0", "attached_pic", tempAudioPath)
 		ffmpegCmd.Stdin = <-audioChan
 		if err := ffmpegCmd.Run(); err != nil {
-			log.Fatal(err)
+			log.Println("ffmpeg cmd:", err)
+			errChan <- err
 		}
 	}()
 
 	wg.Wait()
 
+	select {
+	case <-errChan:
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	default:
+	}
+
 	fileName := info.Uploader + "_-_" + info.Title + ".m4a"
 
-	w.Header().Set("Content-Type", "audio/m4a")
-	w.Header().Set("Content-Disposition", `attachment; filename="`+fileName+`"`)
-	http.ServeFile(w, r, tempAudioPath)
+	encodedFileName := url.PathEscape(fileName)
 
-	defer os.Remove(tempAudioPath)
-	defer os.Remove(tempCoverPath)
+	w.Header().Set("Content-Type", "audio/m4a")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename*=UTF-8''%s`, encodedFileName))
+	http.ServeFile(w, r, tempAudioPath)
 }
 
 type VideoInfo struct {
@@ -71,21 +83,24 @@ type VideoInfo struct {
 	URL      string `json:"url"`
 }
 
-func GetYoutubeInfo(url string) VideoInfo {
+func GetYoutubeInfo(url string) (VideoInfo, error) {
 	infoJSONCmd := exec.Command("yt-dlp", "--no-playlist", "-j", url)
+
+	var info VideoInfo
 
 	infoJSON, err := infoJSONCmd.Output()
 	if err != nil {
 		log.Println("error infoJSONCmd:", err)
+		return info, err
 	}
 
-	var info VideoInfo
 	err = json.Unmarshal(infoJSON, &info)
 	if err != nil {
 		log.Println("error parsing JSON:", err)
+		return info, err
 	}
 
-	return info
+	return info, nil
 }
 
 func getCover(videoId string, tempCoverPath string) {

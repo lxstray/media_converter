@@ -37,13 +37,17 @@ func ConvertToAudio(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(url, "playlist") {
 			converter.GetPlaylistInfo(w, r, url)
 		} else {
-			info := converter.GetYoutubeInfo(url) //TODO: запустить в горутину если получиться получить video id другим способом
+			info, err := converter.GetYoutubeInfo(url) //TODO: запустить в горутину если получиться получить video id другим способом
+			if err != nil {
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
 			info.URL = url
 			converter.Yt2m4a(w, r, info)
 		}
 	}
 	if strings.Contains(url, "soundcloud") {
-		converter.Sc2m4a(&w, r, url)
+		converter.Sc2m4a(w, r, url)
 	}
 }
 

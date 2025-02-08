@@ -176,6 +176,12 @@
             justify-content: center;
             gap: 30px;
             margin-bottom: 30px;
+            position: sticky;
+            top: 0;
+            background-color: var(--input-color);
+            z-index: 100;
+            padding-top: 20px;
+            padding-bottom: 20px;
         }
 
         .downloadBtn {
@@ -184,6 +190,18 @@
             width: 300px;
             height: 50px;
             font-family: 'JetBrains Mono', monospace;
+            border: none;
+            border-radius: 10px;
+            background-color: var(--btn-color);
+            font-size: 1.5rem;
+            margin: 0;
+        }
+
+        .sortBtn {
+            justify-content: center;
+            right: 0;
+            width: 50px;
+            height: 50px;
             border: none;
             border-radius: 10px;
             background-color: var(--btn-color);
@@ -251,10 +269,6 @@
                     body: formData
                 });
 
-                if (!response.ok) {
-                    throw new Error(`Ошибка HTTP: ${response.status}`);
-                }
-
                 const contentType = response.headers.get('content-type');
                 if (contentType?.includes('application/json')) {
                     data = await response.json();
@@ -288,8 +302,27 @@
             const btnContainer = document.createElement("div");
             btnContainer.className = "btns";
 
+            let button = document.createElement("button");
+            button.className = "sortBtn";
+            button.id = "sortBtnId";
+
+            let svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            svg.setAttribute("width", "30px");
+            svg.setAttribute("height", "30px");
+            svg.setAttribute("viewBox", "0 0 24 24");
+            svg.setAttribute("fill", "none");
+            svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+
+            let path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", "M5.47719 7.96225C5.1802 8.25099 5.17351 8.72582 5.46225 9.02281C5.75099 9.3198 6.22582 9.32649 6.52281 9.03775L5.47719 7.96225ZM9.6 5H10.35C10.35 4.69857 10.1695 4.42644 9.89188 4.30913C9.61422 4.19182 9.29331 4.25214 9.07719 4.46225L9.6 5ZM8.85 19C8.85 19.4142 9.18579 19.75 9.6 19.75C10.0142 19.75 10.35 19.4142 10.35 19H8.85ZM18.5228 16.0377C18.8198 15.749 18.8265 15.2742 18.5377 14.9772C18.249 14.6802 17.7742 14.6735 17.4772 14.9623L18.5228 16.0377ZM14.4 19H13.65C13.65 19.3014 13.8305 19.5736 14.1081 19.6909C14.3858 19.8082 14.7067 19.7479 14.9228 19.5377L14.4 19ZM15.15 5C15.15 4.58579 14.8142 4.25 14.4 4.25C13.9858 4.25 13.65 4.58579 13.65 5H15.15ZM6.52281 9.03775L10.1228 5.53775L9.07719 4.46225L5.47719 7.96225L6.52281 9.03775ZM8.85 5V19H10.35V5H8.85ZM17.4772 14.9623L13.8772 18.4623L14.9228 19.5377L18.5228 16.0377L17.4772 14.9623ZM15.15 19V5H13.65V19H15.15Z")
+            path.setAttribute("fill", "#000000");
+
+            svg.appendChild(path);
+            button.appendChild(svg);
+
             const downloadAllBtn = document.createElement("button");
             downloadAllBtn.className = "downloadBtn";
+            downloadAllBtn.id = "downloadAllBtn"
             downloadAllBtn.textContent = "Download all";
 
             const downloadSelectedBtn = document.createElement("button");
@@ -297,6 +330,7 @@
             downloadSelectedBtn.className = "downloadBtn";
             downloadSelectedBtn.textContent = "Download selected";
 
+            btnContainer.appendChild(button)
             btnContainer.appendChild(downloadAllBtn);
             btnContainer.appendChild(downloadSelectedBtn);
             itemList.appendChild(btnContainer);
@@ -356,14 +390,22 @@
                         selectedItems.push(index);
                     }
                 });
-                console.log(selectedItems);
-
                 let selectedVideos = []
                 selectedItems.forEach((id) => {
                     selectedVideos.push(data[id])
                 })
                 sendRequestsSequentially(selectedVideos)
             });
+
+            document.getElementById("downloadAllBtn").addEventListener("click", function () {
+                sendRequestsSequentially(data)
+            })
+
+            document.getElementById("sortBtnId").addEventListener("click", function () {
+                data.reverse()
+                modal.remove()
+                showPlaylistModal()
+            })
         }
 
         async function sendRequestsSequentially(dataArray) {
@@ -400,10 +442,19 @@
             const contentDisposition = response.headers.get('content-disposition')
             let fileName = `audio.${contentType.includes('mpeg') ? 'mp3' : 'm4a'}`;
 
-            if (contentDisposition && contentDisposition.includes('filename=')) {
-                const matches = contentDisposition.match(/filename="([^"]+)"/);
+            if (contentDisposition) {
+                let matches = contentDisposition.match(/filename\*=(?:UTF-8'')?([^;]+)/);
                 if (matches && matches[1]) {
-                    fileName = matches[1];
+                    try {
+                        fileName = decodeURIComponent(matches[1]); // Декодирование URL-кодировки
+                    } catch (e) {
+                        console.error("Ошибка декодирования имени файла:", e);
+                    }
+                } else {
+                    matches = contentDisposition.match(/filename="([^"]+)"/);
+                    if (matches && matches[1]) {
+                        fileName = matches[1];
+                    }
                 }
             }
 
