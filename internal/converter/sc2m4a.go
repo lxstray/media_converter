@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"regexp"
 	"sync"
 
 	"github.com/disintegration/imaging"
@@ -119,6 +120,12 @@ func GetSCInfo(url string) (SCInfo, error) {
 	for _, thumbnail := range info.Thumbnails {
 		if thumbnail.ID == "original" {
 			thumbnailURL = thumbnail.URL
+			break
+		} else if thumbnail.ID == "0" {
+			url := thumbnail.URL
+			re := regexp.MustCompile(`-(\w+)(\.png)`)
+			modifiedURL := re.ReplaceAllString(url, "-original$2")
+			thumbnailURL = modifiedURL
 			break
 		}
 	}
