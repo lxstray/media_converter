@@ -103,6 +103,7 @@ func GetYoutubeInfo(url string) (VideoInfo, error) {
 	return info, nil
 }
 
+// TODO: fatal
 func getCover(videoId string, tempCoverPath string) {
 	coverUrl := fmt.Sprintf("https://img.youtube.com/vi/%s/maxresdefault.jpg", videoId)
 

@@ -175,13 +175,19 @@
             display: flex;
             justify-content: center;
             gap: 30px;
-            margin-bottom: 30px;
+            margin-bottom: 10px;
             position: sticky;
             top: 0;
             background-color: var(--input-color);
             z-index: 100;
             padding-top: 20px;
-            padding-bottom: 20px;
+        }
+
+        .modalHead {
+            position: sticky;
+            top: 0;
+            background-color: var(--input-color);
+            z-index: 100;
         }
 
         .downloadBtn {
@@ -220,6 +226,41 @@
 
         .deleted .name {
             color: var(--btn-color) !important;
+        }
+
+        .loader {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .progressBarContainer {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            align-items: center;
+            height: 30px;
+        }
+
+
+        #progressBar {
+            width: 80%;
+            accent-color: var(--btn-color);
+            height: 30px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
     </style>
     <div class="container"></div>
@@ -261,6 +302,9 @@
             const formData = new FormData(form);
             const submitBtn = form.querySelector('.submit');
 
+            const originalText = submitBtn.innerHTML;
+
+            submitBtn.innerHTML = '<span class="loader"></span>';
             submitBtn.disabled = true;
 
             try {
@@ -273,17 +317,18 @@
                 if (contentType?.includes('application/json')) {
                     data = await response.json();
                     showPlaylistModal();
-                }
-                else if (contentType?.includes('audio/')) {
+                } else if (contentType?.includes('audio/')) {
                     const blob = await response.blob();
                     downloadAudio(blob, contentType, response);
                 }
             } catch (error) {
                 alert(error.message);
             } finally {
+                submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
             }
         });
+
 
         function showPlaylistModal() {
             const modal = document.createElement('div');
@@ -353,11 +398,35 @@
             downloadSelectedBtn.className = "downloadBtn";
             downloadSelectedBtn.textContent = "Download selected";
 
+
+            const container = document.createElement('div');
+            container.className = "progressBarContainer"
+            container.id = 'progressContainer';
+
+            const progressBar = document.createElement('progress');
+            progressBar.id = 'progressBar';
+            progressBar.value = 0;
+            progressBar.max = 100;
+            progressBar.style.display = 'none'
+
+            const progressText = document.createElement('span');
+            progressText.id = 'progressText';
+            progressText.innerText = '0%';
+            progressText.style.display = 'none'
+
+            container.appendChild(progressBar);
+            container.appendChild(progressText);
+
             btnContainer.appendChild(removeButton)
             btnContainer.appendChild(button)
             btnContainer.appendChild(downloadAllBtn);
             btnContainer.appendChild(downloadSelectedBtn);
-            itemList.appendChild(btnContainer);
+
+            const modalHead = document.createElement('div');
+            modalHead.className = 'modalHead';
+            modalHead.appendChild(btnContainer)
+            modalHead.appendChild(container)
+            itemList.appendChild(modalHead);
 
             data.forEach((track, index) => {
 
@@ -407,6 +476,7 @@
                 if (e.target === modal) modal.remove();
             });
             document.getElementById("downloadBtn").addEventListener("click", function () {
+
                 let selectedItems = [];
                 document.querySelectorAll("#itemList li").forEach((li, index) => {
                     let checkbox = li.querySelector("input[type='checkbox']");
@@ -422,6 +492,7 @@
             });
 
             document.getElementById("downloadAllBtn").addEventListener("click", function () {
+
                 sendRequestsSequentially(data)
             })
 
@@ -443,6 +514,17 @@
         }
 
         async function sendRequestsSequentially(dataArray) {
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            progressBar.max = dataArray.length;  // Устанавливаем максимальное значение
+            progressBar.value = 0;  // Начинаем с 0
+
+            progressBar.style.display = 'block'
+            progressText.style.display = 'block'
+
+            let completed = 0;
+            const total = dataArray.length;
+
             for (const item of dataArray) {
                 console.log(item)
                 try {
@@ -465,12 +547,24 @@
                     const contentType = response.headers.get('content-type');
                     downloadAudio(blob, contentType, response)
 
+                    completed++;
+                    progressBar.value = completed;
+                    progressText.innerText = `${Math.round((completed / dataArray.length) * 100)}%`;
+
+
                 } catch (error) {
                     console.error('Error:', error);
                 }
             }
+            if (completed === total) {
+                setTimeout(() => {
+                    progressBar.style.display = 'none'
+                    progressText.style.display = 'none'
+                    progressBar.value = 0;
+                    progressText.innerText = '0%';
+                }, 3000);
+            }
         }
-
 
         function downloadAudio(blob, contentType, response) {
             const contentDisposition = response.headers.get('content-disposition')
@@ -480,7 +574,7 @@
                 let matches = contentDisposition.match(/filename\*=(?:UTF-8'')?([^;]+)/);
                 if (matches && matches[1]) {
                     try {
-                        fileName = decodeURIComponent(matches[1]); // Декодирование URL-кодировки
+                        fileName = decodeURIComponent(matches[1]);
                     } catch (e) {
                         console.error("Ошибка декодирования имени файла:", e);
                     }
