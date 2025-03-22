@@ -49,6 +49,9 @@ func ConvertToAudio(w http.ResponseWriter, r *http.Request) {
 	if strings.Contains(url, "soundcloud") {
 		converter.Sc2m4a(w, r, url)
 	}
+	if strings.Contains(url, "tiktok") {
+		converter.Tiktok2mp4(w, r, url)
+	}
 }
 
 func DownloadFromPlaylist(w http.ResponseWriter, r *http.Request) {

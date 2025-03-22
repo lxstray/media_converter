@@ -334,6 +334,9 @@
                 } else if (contentType?.includes('audio/')) {
                     const blob = await response.blob();
                     downloadAudio(blob, contentType, response);
+                } else if (contentType?.includes('video/')) {
+                    const blob = await response.blob();
+                    downloadVideo(blob, contentType, response);
                 }
             } catch (error) {
                 alert(error.message);
@@ -610,6 +613,38 @@
             URL.revokeObjectURL(url);
             a.remove();
         }
+
+        function downloadVideo(blob, contentType, response) {
+            const contentDisposition = response.headers.get('content-disposition');
+            let fileName = `video.${contentType.includes('mp4') ? 'mp4' : 'avi'}`;
+
+            if (contentDisposition) {
+                let matches = contentDisposition.match(/filename\*=(?:UTF-8'')?([^;]+)/);
+                if (matches && matches[1]) {
+                    try {
+                        fileName = decodeURIComponent(matches[1]);
+                    } catch (e) {
+                        console.error("Ошибка декодирования имени файла:", e);
+                    }
+                } else {
+                    matches = contentDisposition.match(/filename="([^"]+)"/);
+                    if (matches && matches[1]) {
+                        fileName = matches[1];
+                    }
+                }
+            }
+
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            URL.revokeObjectURL(url);
+            a.remove();
+        }
+
     </script>
     </script>
 </body>
