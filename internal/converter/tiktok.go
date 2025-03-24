@@ -8,45 +8,94 @@ import (
 	"net/http"
 	"net/url"
 	"os/exec"
+	"sync"
 )
 
 func Tiktok2mp4(w http.ResponseWriter, r *http.Request, tiktok_url string) {
-	videoInfo, err := GetTiktokInfo(tiktok_url)
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		log.Println("tiktok info:", err)
-		return
-	}
+	infoChan := make(chan TikTokInfo)
+	infoDone := make(chan bool)
+	errChan := make(chan error, 2)
+	videoPipeChan := make(chan io.ReadCloser)
+	wg := &sync.WaitGroup{}
 
-	videoCmd := exec.Command("yt-dlp", "-f", "best", tiktok_url, "-o", "-")
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer close(infoChan)
+		
+		videoInfo, err := GetTiktokInfo(tiktok_url)
+		if err != nil {
+			errChan <- err
+			return
+		}
+		
+		infoChan <- videoInfo
+	}()
 
-	videoPipe, err := videoCmd.StdoutPipe()
-	if err != nil {
-		http.Error(w, "Failed to create yt-dlp pipe", http.StatusInternalServerError)
-		log.Println("yt-dlp pipe error:", err)
-		return
-	}
-
-	if err := videoCmd.Start(); err != nil {
-		http.Error(w, "Failed to start yt-dlp", http.StatusInternalServerError)
-		log.Println("yt-dlp start error:", err)
-		return
-	}
-
-	fileName := "tiktok_" + videoInfo.VideoID + ".mp4"
-	encodedFileName := url.PathEscape(fileName)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		
+		videoCmd := exec.Command("yt-dlp", "-f", "best", tiktok_url, "-o", "-")
+		
+		videoPipe, err := videoCmd.StdoutPipe()
+		if err != nil {
+			errChan <- err
+			return
+		}
+		
+		if err := videoCmd.Start(); err != nil {
+			errChan <- err
+			return
+		}
+		
+		videoPipeChan <- videoPipe
+		
+		if err := videoCmd.Wait(); err != nil {
+			log.Println("yt-dlp execution error:", err)
+		}
+	}()
 
 	w.Header().Set("Content-Type", "video/mp4")
 	w.Header().Set("Transfer-Encoding", "chunked")
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename*=UTF-8''%s`, encodedFileName))
+	
+	go func() {
+		select {
+		case videoInfo, ok := <-infoChan:
+			if ok {
+				fileName := "tiktok_" + videoInfo.VideoID + ".mp4"
+				encodedFileName := url.PathEscape(fileName)
+				w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename*=UTF-8''%s`, encodedFileName))
+			} else {
+				w.Header().Set("Content-Disposition", `attachment; filename="tiktok_video.mp4"`)
+			}
+		case <-r.Context().Done():
+			return
+		}
+		close(infoDone)
+	}()
 
-	if _, err := io.Copy(w, videoPipe); err != nil {
-		log.Println("Streaming error:", err)
+	select {
+	case err := <-errChan:
+		if err != nil {
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			log.Println("TikTok processing error:", err)
+			return
+		}
+	case videoPipe := <-videoPipeChan:
+		if _, err := io.Copy(w, videoPipe); err != nil {
+			log.Println("Streaming error:", err)
+		}
+	case <-r.Context().Done():
+		log.Println("Request canceled by client")
+		return
 	}
 
-	if err := videoCmd.Wait(); err != nil {
-		log.Println("yt-dlp execution error:", err)
-	}
+	go func() {
+		wg.Wait()
+		close(errChan)
+		close(videoPipeChan)
+	}()
 }
 
 type TikTokInfo struct {
