@@ -1,14 +1,24 @@
 package converter
 
 import (
+	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os/exec"
 )
 
-func Tiktok2mp4(w http.ResponseWriter, r *http.Request, url string) {
-	videoCmd := exec.Command("yt-dlp", "-f", "'best'", url, "-o", "-")
+func Tiktok2mp4(w http.ResponseWriter, r *http.Request, tiktok_url string) {
+	videoInfo, err := GetTiktokInfo(tiktok_url)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		log.Println("tiktok info:", err)
+		return
+	}
+
+	videoCmd := exec.Command("yt-dlp", "-f", "best", tiktok_url, "-o", "-")
 
 	videoPipe, err := videoCmd.StdoutPipe()
 	if err != nil {
@@ -23,9 +33,12 @@ func Tiktok2mp4(w http.ResponseWriter, r *http.Request, url string) {
 		return
 	}
 
+	fileName := "tiktok_" + videoInfo.VideoID + ".mp4"
+	encodedFileName := url.PathEscape(fileName)
+
 	w.Header().Set("Content-Type", "video/mp4")
 	w.Header().Set("Transfer-Encoding", "chunked")
-	w.Header().Set("Content-Disposition", `attachment; filename="audio.mp4"`)
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename*=UTF-8''%s`, encodedFileName))
 
 	if _, err := io.Copy(w, videoPipe); err != nil {
 		log.Println("Streaming error:", err)
@@ -34,4 +47,28 @@ func Tiktok2mp4(w http.ResponseWriter, r *http.Request, url string) {
 	if err := videoCmd.Wait(); err != nil {
 		log.Println("yt-dlp execution error:", err)
 	}
+}
+
+type TikTokInfo struct {
+	VideoID string `json:"id"`
+}
+
+func GetTiktokInfo(url string) (TikTokInfo, error) {
+	infoJSONCmd := exec.Command("yt-dlp", "--no-playlist", "-j", url)
+
+	var info TikTokInfo
+
+	infoJSON, err := infoJSONCmd.Output()
+	if err != nil {
+		log.Println("error infoJSONCmd:", err)
+		return info, err
+	}
+
+	err = json.Unmarshal(infoJSON, &info)
+	if err != nil {
+		log.Println("error parsing JSON:", err)
+		return info, err
+	}
+
+	return info, nil
 }
